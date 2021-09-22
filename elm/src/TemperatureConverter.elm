@@ -11,60 +11,72 @@ main =
 
 
 type alias Model =
-    { temp : Temperature }
+    { temperature : Celsius }
 
 
-type Temperature
+type Celsius
     = Celsius Float
-    | Fahrenheit Float
+
+
+type Fahrenheit
+    = Fahrenheit Float
 
 
 init : Model
 init =
-    { temp = Celsius 0 }
+    { temperature = Celsius 0 }
 
 
 type Msg
-    = Change (Maybe Temperature)
+    = ChangeCelsius Celsius
+    | ChangeFahrenheit Fahrenheit
 
 
-update : Msg -> Model -> Model
+update : Maybe Msg -> Model -> Model
 update msg model =
     case msg of
-        Change newTemp ->
-            { model | temp = Maybe.withDefault model.temp newTemp }
+        Just (ChangeCelsius c) ->
+            { model | temperature = c }
+
+        Just (ChangeFahrenheit f) ->
+            { model | temperature = fahrenheitToCelsius f }
+
+        Nothing ->
+            model
 
 
-view : Model -> Html Msg
-view { temp } =
+view : Model -> Html (Maybe Msg)
+view { temperature } =
     let
-        ( celsius, fahrenheit ) =
-            temperatureInBothUnits temp
-                |> Tuple.mapBoth String.fromFloat String.fromFloat
+        (Celsius celsius) =
+            temperature
+
+        (Fahrenheit fahrenheit) =
+            celciusToFahrenheit temperature
     in
     div []
-        [ input [ type_ "number", onInput (String.toFloat >> Maybe.map Celsius >> Change), value celsius ] []
-        , text " Celcius = "
-        , input [ type_ "number", onInput (String.toFloat >> Maybe.map Fahrenheit >> Change), value fahrenheit ] []
+        [ input
+            [ type_ "number"
+            , onInput (String.toFloat >> Maybe.map (Celsius >> ChangeCelsius))
+            , value (String.fromFloat celsius)
+            ]
+            []
+        , text " Celsius = "
+        , input
+            [ type_ "number"
+            , onInput (String.toFloat >> Maybe.map (Fahrenheit >> ChangeFahrenheit))
+            , value (String.fromFloat fahrenheit)
+            ]
+            []
         , text " Fahrenheit"
         ]
 
 
-temperatureInBothUnits : Temperature -> ( Float, Float )
-temperatureInBothUnits temp =
-    case temp of
-        Celsius c ->
-            ( c, celciusToFahrenheit c )
-
-        Fahrenheit f ->
-            ( fahrenheitToCelsius f, f )
+celciusToFahrenheit : Celsius -> Fahrenheit
+celciusToFahrenheit (Celsius c) =
+    Fahrenheit <| c * (9 / 5) + 32
 
 
-celciusToFahrenheit : Float -> Float
-celciusToFahrenheit c =
-    c * (9 / 5) + 32
-
-
-fahrenheitToCelsius : Float -> Float
-fahrenheitToCelsius f =
-    (f - 32) * (5 / 9)
+fahrenheitToCelsius : Fahrenheit -> Celsius
+fahrenheitToCelsius (Fahrenheit f) =
+    Celsius <| (f - 32) * (5 / 9)
