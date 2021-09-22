@@ -1,55 +1,10 @@
 module TemperatureConverter exposing (main)
 
 import Browser
-import Html exposing (Html, div, input, text)
-import Html.Attributes exposing (type_, value)
+import Html exposing (Html, div, input, pre, text)
+import Html.Attributes exposing (attribute, type_, value)
 import Html.Events exposing (onInput)
-
-
-
--- Temperature.elm
-
-
-type Celsius
-    = Celsius Float
-
-
-type Fahrenheit
-    = Fahrenheit Float
-
-
-celsiusFromString : String -> Maybe Celsius
-celsiusFromString =
-    String.toFloat >> Maybe.map Celsius
-
-
-celsiusToString : Celsius -> String
-celsiusToString (Celsius c) =
-    String.fromFloat c
-
-
-fahrenheitToString : Fahrenheit -> String
-fahrenheitToString (Fahrenheit f) =
-    String.fromFloat f
-
-
-fahrenheitFromString : String -> Maybe Fahrenheit
-fahrenheitFromString =
-    String.toFloat >> Maybe.map Fahrenheit
-
-
-toCelsius : Fahrenheit -> Celsius
-toCelsius (Fahrenheit f) =
-    Celsius <| (f - 32) * (5 / 9)
-
-
-toFahrenheit : Celsius -> Fahrenheit
-toFahrenheit (Celsius c) =
-    Fahrenheit <| c * (9 / 5) + 32
-
-
-
--- TemperatureConverter.elm
+import Maybe.Extra
 
 
 main =
@@ -57,41 +12,72 @@ main =
 
 
 type alias Model =
-    Maybe Celsius
+    ( Maybe Temp, Maybe Temp )
+
+
+type Temp
+    = C String
+    | F String
 
 
 init : Model
 init =
-    Nothing
+    ( Nothing, Nothing )
 
 
 type Msg
-    = ChangeCelsiusIntent String
-    | ChangeFahrenheitIntent String
+    = Read Temp
 
 
 update : Msg -> Model -> Model
-update msg model =
-    case msg of
-        ChangeCelsiusIntent s ->
-            celsiusFromString s
+update (Read temp) ( prevC, prevF ) =
+    case temp of
+        C v ->
+            ( Just (C v), convert v toF |> Maybe.map F |> Maybe.Extra.orElse prevF )
 
-        ChangeFahrenheitIntent s ->
-            fahrenheitFromString s |> Maybe.map toCelsius
+        F v ->
+            ( convert v toC |> Maybe.map C |> Maybe.Extra.orElse prevC, Just (F v) )
+
+
+convert : String -> (Float -> Float) -> Maybe String
+convert x fn =
+    String.toFloat x |> Maybe.map (fn >> String.fromFloat)
 
 
 view : Model -> Html Msg
-view t =
-    let
-        c =
-            Maybe.map celsiusToString t
-                |> Maybe.withDefault ""
-
-        f =
-            Maybe.map (toFahrenheit >> fahrenheitToString) t
-                |> Maybe.withDefault ""
-    in
-    Html.div []
-        [ Html.input [ value c, onInput ChangeCelsiusIntent ] []
-        , Html.input [ value f, onInput ChangeFahrenheitIntent ] []
+view ( c, f ) =
+    div []
+        [ input_ c (C >> Read)
+        , input_ f (F >> Read)
+        , pre [] [ ( c, f ) |> Debug.toString |> text ]
         ]
+
+
+input_ temp msg =
+    let
+        valThing =
+            case temp of
+                Just t ->
+                    [ value (getValue t) ]
+
+                Nothing ->
+                    []
+    in
+    input (valThing ++ [ onInput msg ]) []
+
+
+getValue temp =
+    case temp of
+        C v ->
+            v
+
+        F v ->
+            v
+
+
+toC f =
+    (f - 32) * (5 / 9)
+
+
+toF c =
+    c * (9 / 5) + 32
