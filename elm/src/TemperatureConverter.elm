@@ -11,72 +11,65 @@ main =
 
 
 type alias Model =
-    { temperature : Celsius }
+    { temperature : Temperature }
 
 
-type Celsius
-    = Celsius Float
+type alias Temperature =
+    ( Float, Unit )
 
 
-type Fahrenheit
-    = Fahrenheit Float
+type Unit
+    = Celsius
+    | Fahrenheit
 
 
 init : Model
 init =
-    { temperature = Celsius 0 }
+    { temperature = ( 0, Celsius ) }
 
 
 type Msg
-    = ChangeCelsius Celsius
-    | ChangeFahrenheit Fahrenheit
+    = ChangeIntent Unit String
 
 
-update : Maybe Msg -> Model -> Model
+update : Msg -> Model -> Model
 update msg model =
     case msg of
-        Just (ChangeCelsius c) ->
-            { model | temperature = c }
-
-        Just (ChangeFahrenheit f) ->
-            { model | temperature = fahrenheitToCelsius f }
-
-        Nothing ->
-            model
+        ChangeIntent unit stringValue ->
+            String.toFloat stringValue
+                |> Maybe.map (\f -> convert unit ( f, unit ))
+                |> Maybe.map (\t -> { model | temperature = t })
+                |> Maybe.withDefault model
 
 
-view : Model -> Html (Maybe Msg)
+view : Model -> Html Msg
 view { temperature } =
-    let
-        (Celsius celsius) =
-            temperature
-
-        (Fahrenheit fahrenheit) =
-            celciusToFahrenheit temperature
-    in
     div []
-        [ input
-            [ type_ "number"
-            , onInput (String.toFloat >> Maybe.map (Celsius >> ChangeCelsius))
-            , value (String.fromFloat celsius)
-            ]
-            []
+        [ viewTemperatureInput (convert Celsius temperature)
         , text " Celsius = "
-        , input
-            [ type_ "number"
-            , onInput (String.toFloat >> Maybe.map (Fahrenheit >> ChangeFahrenheit))
-            , value (String.fromFloat fahrenheit)
-            ]
-            []
+        , viewTemperatureInput (convert Fahrenheit temperature)
         , text " Fahrenheit"
         ]
 
 
-celciusToFahrenheit : Celsius -> Fahrenheit
-celciusToFahrenheit (Celsius c) =
-    Fahrenheit <| c * (9 / 5) + 32
+viewTemperatureInput : Temperature -> Html Msg
+viewTemperatureInput ( t, unit ) =
+    input
+        [ type_ "number"
+        , onInput (ChangeIntent unit)
+        , value (String.fromFloat t)
+        ]
+        []
 
 
-fahrenheitToCelsius : Fahrenheit -> Celsius
-fahrenheitToCelsius (Fahrenheit f) =
-    Celsius <| (f - 32) * (5 / 9)
+convert : Unit -> Temperature -> Temperature
+convert u t =
+    case ( t, u ) of
+        ( ( c, Celsius ), Fahrenheit ) ->
+            ( c * (9 / 5) + 32, Fahrenheit )
+
+        ( ( f, Fahrenheit ), Celsius ) ->
+            ( (f - 32) * (5 / 9), Celsius )
+
+        _ ->
+            t
