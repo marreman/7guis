@@ -6,70 +6,92 @@ import Html.Attributes exposing (type_, value)
 import Html.Events exposing (onInput)
 
 
+
+-- Temperature.elm
+
+
+type Celsius
+    = Celsius Float
+
+
+type Fahrenheit
+    = Fahrenheit Float
+
+
+celsiusFromString : String -> Maybe Celsius
+celsiusFromString =
+    String.toFloat >> Maybe.map Celsius
+
+
+celsiusToString : Celsius -> String
+celsiusToString (Celsius c) =
+    String.fromFloat c
+
+
+fahrenheitToString : Fahrenheit -> String
+fahrenheitToString (Fahrenheit f) =
+    String.fromFloat f
+
+
+fahrenheitFromString : String -> Maybe Fahrenheit
+fahrenheitFromString =
+    String.toFloat >> Maybe.map Fahrenheit
+
+
+toCelsius : Fahrenheit -> Celsius
+toCelsius (Fahrenheit f) =
+    Celsius <| (f - 32) * (5 / 9)
+
+
+toFahrenheit : Celsius -> Fahrenheit
+toFahrenheit (Celsius c) =
+    Fahrenheit <| c * (9 / 5) + 32
+
+
+
+-- TemperatureConverter.elm
+
+
 main =
     Browser.sandbox { init = init, update = update, view = view }
 
 
 type alias Model =
-    { temperature : Temperature }
-
-
-type alias Temperature =
-    ( Float, Unit )
-
-
-type Unit
-    = Celsius
-    | Fahrenheit
+    Maybe Celsius
 
 
 init : Model
 init =
-    { temperature = ( 0, Celsius ) }
+    Nothing
 
 
 type Msg
-    = ChangeIntent Unit String
+    = ChangeCelsiusIntent String
+    | ChangeFahrenheitIntent String
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        ChangeIntent unit stringValue ->
-            String.toFloat stringValue
-                |> Maybe.map (\f -> convert unit ( f, unit ))
-                |> Maybe.map (\t -> { model | temperature = t })
-                |> Maybe.withDefault model
+        ChangeCelsiusIntent s ->
+            celsiusFromString s
+
+        ChangeFahrenheitIntent s ->
+            fahrenheitFromString s |> Maybe.map toCelsius
 
 
 view : Model -> Html Msg
-view { temperature } =
-    div []
-        [ viewTemperatureInput (convert Celsius temperature)
-        , text " Celsius = "
-        , viewTemperatureInput (convert Fahrenheit temperature)
-        , text " Fahrenheit"
+view t =
+    let
+        c =
+            Maybe.map celsiusToString t
+                |> Maybe.withDefault ""
+
+        f =
+            Maybe.map (toFahrenheit >> fahrenheitToString) t
+                |> Maybe.withDefault ""
+    in
+    Html.div []
+        [ Html.input [ value c, onInput ChangeCelsiusIntent ] []
+        , Html.input [ value f, onInput ChangeFahrenheitIntent ] []
         ]
-
-
-viewTemperatureInput : Temperature -> Html Msg
-viewTemperatureInput ( t, unit ) =
-    input
-        [ type_ "number"
-        , onInput (ChangeIntent unit)
-        , value (String.fromFloat t)
-        ]
-        []
-
-
-convert : Unit -> Temperature -> Temperature
-convert u t =
-    case ( t, u ) of
-        ( ( c, Celsius ), Fahrenheit ) ->
-            ( c * (9 / 5) + 32, Fahrenheit )
-
-        ( ( f, Fahrenheit ), Celsius ) ->
-            ( (f - 32) * (5 / 9), Celsius )
-
-        _ ->
-            t
