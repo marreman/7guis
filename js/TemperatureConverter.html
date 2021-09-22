@@ -1,0 +1,17 @@
+<input id="c" oninput="toF(event)" /> Celsius =
+<input id="f" oninput="toC(event)" /> Fahrenheit
+<script>
+  function convert(converter, otherElementId, event) {
+    const inputValue = event.target.value
+    const otherElement = document.getElementById(otherElementId)
+    const parsedValue = parseFloat(inputValue)
+
+    if (inputValue === "") {
+      otherElement.value = ""
+    } else if (!isNaN(parsedValue)) {
+      otherElement.value = converter(parsedValue)
+    }
+  }
+  const toF = convert.bind(null, (c) => c * (9 / 5) + 32, "f")
+  const toC = convert.bind(null, (f) => (f - 32) * (5 / 9), "c")
+</script>
