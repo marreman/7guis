@@ -7,77 +7,70 @@ import Html.Events exposing (onInput)
 import Maybe.Extra
 
 
+main : Program () Model Msg
 main =
     Browser.sandbox { init = init, update = update, view = view }
 
 
+
+-- MODEL
+
+
 type alias Model =
-    ( Maybe Temp, Maybe Temp )
-
-
-type Temp
-    = C String
-    | F String
+    { c : String, f : String }
 
 
 init : Model
 init =
-    ( Nothing, Nothing )
+    Model "" ""
+
+
+
+-- UPDATE
 
 
 type Msg
-    = Read Temp
+    = UpdateCelsius String
+    | UpdateFahrenheit String
 
 
 update : Msg -> Model -> Model
-update (Read temp) ( prevC, prevF ) =
-    case temp of
-        C v ->
-            ( Just (C v), convert v toF |> Maybe.map F |> Maybe.Extra.orElse prevF )
+update msg model =
+    case msg of
+        UpdateCelsius c ->
+            { c = c, f = convert c toFahrenheit model.f }
 
-        F v ->
-            ( convert v toC |> Maybe.map C |> Maybe.Extra.orElse prevC, Just (F v) )
-
-
-convert : String -> (Float -> Float) -> Maybe String
-convert x fn =
-    String.toFloat x |> Maybe.map (fn >> String.fromFloat)
+        UpdateFahrenheit f ->
+            { c = convert f toCelsius model.c, f = f }
 
 
-view : Model -> Html Msg
-view ( c, f ) =
-    div []
-        [ input_ c (C >> Read)
-        , input_ f (F >> Read)
-        , pre [] [ ( c, f ) |> Debug.toString |> text ]
-        ]
+convert : String -> (Float -> Float) -> String -> String
+convert x fn default =
+    String.toFloat x
+        |> Maybe.map (fn >> String.fromFloat)
+        |> Maybe.withDefault default
 
 
-input_ temp msg =
-    let
-        valThing =
-            case temp of
-                Just t ->
-                    [ value (getValue t) ]
-
-                Nothing ->
-                    []
-    in
-    input (valThing ++ [ onInput msg ]) []
-
-
-getValue temp =
-    case temp of
-        C v ->
-            v
-
-        F v ->
-            v
-
-
-toC f =
+toCelsius : Float -> Float
+toCelsius f =
     (f - 32) * (5 / 9)
 
 
-toF c =
+toFahrenheit : Float -> Float
+toFahrenheit c =
     c * (9 / 5) + 32
+
+
+
+-- VIEW
+
+
+view : Model -> Html Msg
+view model =
+    div []
+        [ input [ value model.c, onInput UpdateCelsius ] []
+        , text " Celsius = "
+        , input [ value model.f, onInput UpdateFahrenheit ] []
+        , text " Fahrenheit"
+        , pre [] [ model |> Debug.toString |> text ]
+        ]
